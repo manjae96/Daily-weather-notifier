@@ -50,6 +50,7 @@ spec:
       containers:
       - name: api
         image: ghcr.io/manjae96/daily-weather-notifier:latest
+        imagePullPolicy: Always
         ports: [{ containerPort: 8000 }]
         envFrom:
         - configMapRef: { name: weather-config }
@@ -92,6 +93,7 @@ spec:
           containers:
           - name: brief
             image: ghcr.io/manjae96/daily-weather-notifier:latest
+            imagePullPolicy: Always
             command: ["python", "-m", "app.jobs.morning_brief"]
             envFrom:
             - configMapRef: { name: weather-config }
