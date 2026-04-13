@@ -26,9 +26,11 @@ def _chunk(text: str, size: int = 500) -> list[str]:
         if len(buf) + len(p) < size:
             buf += ("\n\n" if buf else "") + p
         else:
-            if buf: chunks.append(buf)
+            if buf:
+                chunks.append(buf)
             buf = p
-    if buf: chunks.append(buf)
+    if buf:
+        chunks.append(buf)
     return chunks
 
 async def ingest_directory(docs_dir: str = "docs/rag") -> int:

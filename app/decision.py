@@ -9,7 +9,8 @@ def need_umbrella(forecast: dict) -> tuple[bool, str]:
     return False, f"강수확률 최대 {pop}%, 강수량 미미"
 
 def need_mask(air: dict) -> tuple[bool, str]:
-    pm25 = air.get("pm25"); pm10 = air.get("pm10")
+    pm25 = air.get("pm25")
+    pm10 = air.get("pm10")
     triggers = []
     if pm25 is not None and pm25 >= settings.pm25_threshold:
         triggers.append(f"PM2.5 {pm25}㎍/㎥")

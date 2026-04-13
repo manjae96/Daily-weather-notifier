@@ -15,8 +15,10 @@ async def fetch_air(sido: str, station: str) -> dict:
         items = r.json()["response"]["body"]["items"]
     match = next((it for it in items if it.get("stationName") == station), items[0] if items else {})
     def to_int(x):
-        try: return int(x)
-        except (TypeError, ValueError): return None
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return None
     return {
         "pm10": to_int(match.get("pm10Value")),
         "pm25": to_int(match.get("pm25Value")),

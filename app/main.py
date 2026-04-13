@@ -12,7 +12,8 @@ async def health(): return {"status": "ok"}
 @app.get("/today/{region}")
 async def today(region: str):
     info = settings.regions.get(region)
-    if not info: raise HTTPException(404, f"Unknown region: {region}")
+    if not info:
+        raise HTTPException(404, f"Unknown region: {region}")
     return await collect_region(region, info)
 
 @app.post("/trigger/morning-brief")

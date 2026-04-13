@@ -9,7 +9,8 @@ def _base_datetime(now: datetime) -> tuple[str, str]:
     slots = [2, 5, 8, 11, 14, 17, 20, 23]
     candidates = [s for s in slots if s <= now.hour]
     if not candidates:
-        d = now - timedelta(days=1); h = 23
+        d = now - timedelta(days=1)
+        h = 23
     else:
         d, h = now, max(candidates)
     return d.strftime("%Y%m%d"), f"{h:02d}00"
