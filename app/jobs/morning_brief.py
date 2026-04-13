@@ -46,8 +46,11 @@ async def run() -> str:
         ctx_text = "\n\n".join(f"[{c['source']}]\n{c['text']}" for c in ctx)
     except Exception as e:
         ctx_text = f"(RAG 미적용: {e})"
-    llm = get_client()
-    advice = await llm.generate(SYSTEM_PROMPT, f"# 컨텍스트\n{ctx_text}\n\n# 오늘 요약\n{summary}")
+    try:
+        llm = get_client()
+        advice = await llm.generate(SYSTEM_PROMPT, f"# 컨텍스트\n{ctx_text}\n\n# 오늘 요약\n{summary}")
+    except Exception as e:
+        advice = f"_(조언 생성 일시 장애: {type(e).__name__})_"
     msg = format_brief(results, advice)
     await get_notifier().send(msg)
     return msg
