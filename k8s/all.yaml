@@ -1,0 +1,139 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: weather
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-config
+  namespace: weather
+data:
+  LLM_PROVIDER: "gemini"
+  QDRANT_URL: "http://qdrant:6333"
+  QDRANT_COLLECTION: "weather_kb"
+  RAIN_PROB_THRESHOLD: "60"
+  RAIN_MM_THRESHOLD: "1.0"
+  PM25_THRESHOLD: "35"
+  PM10_THRESHOLD: "80"
+  TZ: "Asia/Seoul"
+---
+# 실제 적용은: kubectl -n weather create secret generic weather-secrets \
+#   --from-literal=KMA_API_KEY=... --from-literal=AIRKOREA_API_KEY=... \
+#   --from-literal=GEMINI_API_KEY=... --from-literal=TELEGRAM_BOT_TOKEN=... \
+#   --from-literal=TELEGRAM_CHAT_ID=...
+apiVersion: v1
+kind: Secret
+metadata:
+  name: weather-secrets
+  namespace: weather
+type: Opaque
+stringData:
+  KMA_API_KEY: "REPLACE_ME"
+  AIRKOREA_API_KEY: "REPLACE_ME"
+  GEMINI_API_KEY: "REPLACE_ME"
+  TELEGRAM_BOT_TOKEN: ""
+  TELEGRAM_CHAT_ID: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-api
+  namespace: weather
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: weather-api } }
+  template:
+    metadata: { labels: { app: weather-api } }
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/REPLACE_OWNER/daily-weather-notifier:latest
+        ports: [{ containerPort: 8000 }]
+        envFrom:
+        - configMapRef: { name: weather-config }
+        - secretRef:    { name: weather-secrets }
+        resources:
+          requests: { cpu: "100m", memory: "128Mi" }
+          limits:   { cpu: "500m", memory: "512Mi" }
+        readinessProbe:
+          httpGet: { path: /health, port: 8000 }
+          initialDelaySeconds: 5
+        livenessProbe:
+          httpGet: { path: /health, port: 8000 }
+          initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata: { name: weather-api, namespace: weather }
+spec:
+  selector: { app: weather-api }
+  ports: [{ port: 80, targetPort: 8000 }]
+  type: ClusterIP
+---
+# 매일 07:00 KST = 22:00 UTC (전날). K8s CronJob은 UTC 기준.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: morning-brief
+  namespace: weather
+spec:
+  schedule: "0 22 * * *"
+  timeZone: "Asia/Seoul"   # k8s 1.27+ 지원 시 사용 가능. 미지원이면 "0 22 * * *" 그대로.
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: brief
+            image: ghcr.io/REPLACE_OWNER/daily-weather-notifier:latest
+            command: ["python", "-m", "app.jobs.morning_brief"]
+            envFrom:
+            - configMapRef: { name: weather-config }
+            - secretRef:    { name: weather-secrets }
+            resources:
+              requests: { cpu: "100m", memory: "128Mi" }
+              limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: qdrant-data, namespace: weather }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 5Gi } }
+  storageClassName: local-path
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: qdrant, namespace: weather }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: qdrant } }
+  strategy: { type: Recreate }
+  template:
+    metadata: { labels: { app: qdrant } }
+    spec:
+      containers:
+      - name: qdrant
+        image: qdrant/qdrant:v1.12.0
+        ports: [{ containerPort: 6333 }]
+        volumeMounts: [{ name: data, mountPath: /qdrant/storage }]
+        resources:
+          requests: { cpu: "200m", memory: "512Mi" }
+          limits:   { cpu: "1",    memory: "1Gi" }
+      volumes:
+      - name: data
+        persistentVolumeClaim: { claimName: qdrant-data }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: qdrant, namespace: weather }
+spec:
+  selector: { app: qdrant }
+  ports: [{ port: 6333, targetPort: 6333 }]
+  type: ClusterIP
