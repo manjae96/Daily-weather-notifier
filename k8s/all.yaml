@@ -49,7 +49,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: ghcr.io/<username소문자>/daily-weather-notifier:latest
+        image: ghcr.io/manjae96/daily-weather-notifier:latest
         ports: [{ containerPort: 8000 }]
         envFrom:
         - configMapRef: { name: weather-config }
@@ -91,7 +91,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: brief
-            image: ghcr.io/<username소문자>/daily-weather-notifier:latest
+            image: ghcr.io/manjae96/daily-weather-notifier:latest
             command: ["python", "-m", "app.jobs.morning_brief"]
             envFrom:
             - configMapRef: { name: weather-config }
